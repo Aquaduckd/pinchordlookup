@@ -1,0 +1,15 @@
+{
+  "name": "pinchord-site",
+  "version": "1.0.0",
+  "description": "Pinchord website",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "serve": "serve . -l 3000",
+    "generate-key-orders": "node scripts/extract-key-orders.mjs"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0",
+    "typescript": "^5.0.0"
+  }
+}
