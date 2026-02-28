@@ -190,12 +190,13 @@ function applyChordHighlight(el: HTMLElement): void {
   if (final.startsWith("-")) final = final.slice(1);
   const keyNames = keyOrders[versionEl.value];
   if (!keyNames?.length) return;
-  const leftKeys = parseChordToKeys(initial, keyNames);
+  const initialKeys = parseChordToKeys(initial, keyNames);
   const centerKeys = parseChordToKeys(vowel, keyNames);
-  const rightKeys = new Set<string>([
-    ...parseChordToKeys(final, keyNames),
-    ...parseChordToKeys(suffix, keyNames),
-  ]);
+  const finalKeys = parseChordToKeys(final, keyNames);
+  const suffixKeys = parseChordToKeys(suffix, keyNames);
+  // Initial on left, final on right; prefix/suffix (when we have prefix) highlight both sides
+  const leftKeys = new Set<string>([...initialKeys, ...suffixKeys]);
+  const rightKeys = new Set<string>([...finalKeys, ...suffixKeys]);
   if (chordIndex > 0 && keyNames.includes("+")) {
     const joinerIdx = keyNames.indexOf("+");
     if (joinerIdx < 12) leftKeys.add("+");
