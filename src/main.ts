@@ -126,7 +126,8 @@ function buildRow(display: string, strokes: Stroke[]): string {
       const stroke = strokes[chordIndex] ?? ["", "", "", ""];
       const [initial, vowel, final, suffix] = stroke;
       const attrs = `data-initial="${escapeHtml(initial)}" data-vowel="${escapeHtml(vowel)}" data-final="${escapeHtml(final)}" data-suffix="${escapeHtml(suffix)}" data-chord-index="${chordIndex}"`;
-      return `<span class="chord-box inline-block rounded border border-gray-300 bg-white px-2 py-0.5 text-sm font-medium text-gray-800 cursor-pointer hover:bg-gray-100" ${attrs}>${escapeHtml(c)}</span>`;
+      const label = chordIndex > 0 ? "+" + c : c;
+      return `<span class="chord-box inline-block rounded border border-gray-300 bg-white px-2 py-0.5 text-sm font-medium text-gray-800 cursor-pointer hover:bg-gray-100" ${attrs}>${escapeHtml(label)}</span>`;
     })
     .join(slash);
   return `<div class="flex flex-wrap gap-1.5 items-center h-[2.25rem] border-b border-gray-200 py-0">${boxes}</div>`;
