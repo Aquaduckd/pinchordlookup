@@ -249,9 +249,10 @@ function chordOutputWithJoiner(display: string): string {
 }
 
 function appendCsvRow(index: number, word: string, chordOutput: string): void {
+  const chordCount = chordOutput ? chordOutput.split(" / ").length : 0;
   const tr = document.createElement("tr");
   tr.className = "border-b border-gray-100 last:border-0";
-  tr.innerHTML = `<td class="px-3 py-1.5 text-gray-600">${index}</td><td class="px-3 py-1.5 text-gray-800">${escapeHtml(word)}</td><td class="px-3 py-1.5 text-gray-700 font-mono">${escapeHtml(chordOutput)}</td>`;
+  tr.innerHTML = `<td class="px-3 py-1.5 text-gray-600">${index}</td><td class="px-3 py-1.5 text-gray-800">${escapeHtml(word)}</td><td class="px-3 py-1.5 text-gray-700 font-mono">${escapeHtml(chordOutput)}</td><td class="px-3 py-1.5 text-gray-600">${chordCount}</td>`;
   csvTbody.appendChild(tr);
 }
 
@@ -574,14 +575,19 @@ csvComputeBtn.addEventListener("click", () => {
 });
 
 csvSaveBtn.addEventListener("click", () => {
-  const header = "Index,Word,Chord output\n";
-  const rows = csvTableData.map((r, i) => `${i + 1},${escapeCsv(r.word)},${escapeCsv(r.chordOutput)}`).join("\n");
+  const header = "Index,Word,Chord output,Chord count\n";
+  const rows = csvTableData.map((r, i) => {
+    const count = r.chordOutput ? r.chordOutput.split(" / ").length : 0;
+    return `${i + 1},${escapeCsv(r.word)},${escapeCsv(r.chordOutput)},${count}`;
+  }).join("\n");
   const csv = header + rows;
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
+  const version = versionEl.value;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "pinchord-fewest-chords.csv";
+  a.download = `pinchord-fewest-chords-${version}-${timestamp}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 });
