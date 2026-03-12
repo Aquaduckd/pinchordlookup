@@ -33,7 +33,7 @@ This project is ready to deploy to **GitHub Pages** using GitHub Actions.
   Chord data is loaded with a path relative to the worker script (`../chord-versions/...`) so it works when the site is served from a subpath (e.g. `.../PinchordSite/`).
 
 - **`.github/workflows/deploy-pages.yml`**  
-  Workflow that installs deps, runs `npm run build`, and deploys the built site (including `index.html`, `dist/`, `chord-versions/`, and `key-orders.json`) to GitHub Pages.
+  Workflow that installs deps, runs `npm run build`, and deploys the built site (including `index.html`, `dist/`, `chord-versions/`, `wordlists/`, and `key-orders.json`) to GitHub Pages.
 
 - **`.gitignore`**  
   `_site/` is ignored (used as the deploy artifact in CI).
