@@ -652,7 +652,10 @@ function applyChordHighlight(el: HTMLElement, pinned = false): void {
       const leftHalfKeys = parseChordToKeys(leftHalf, keyNames);
       leftKeys = new Set([...leftHalfKeys, ...suffixKeys]);
       rightKeys = new Set([...parseChordToKeys(rightHalf, keyNames), ...suffixKeys]);
-      effectiveCenterKeys = leftHalfKeys;
+      const banks = layoutBanks[versionEl.value];
+      effectiveCenterKeys = new Set(
+        [...leftHalfKeys].filter((k) => (banks?.vowels?.includes(k) ?? false))
+      );
     } else {
       const byHand = splitKeysByHand(initialKeys, keyNames);
       leftKeys = new Set([...byHand.left, ...suffixKeys]);
