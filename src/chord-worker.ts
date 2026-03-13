@@ -202,6 +202,8 @@ async function startJob(
     cache[CUSTOM_VERSION] = data;
     chordData = data;
     cacheKey = CUSTOM_VERSION;
+    // Always rebuild rev maps for custom data so we use the latest payload (no cache).
+    revCache[CUSTOM_VERSION] = buildRevMaps(data);
   } else if (version !== undefined) {
     chordData = cache[version];
     if (!chordData) {
@@ -217,7 +219,7 @@ async function startJob(
   } else {
     throw new Error("Either version or data must be provided");
   }
-  const rev = getRevMaps(cacheKey, chordData);
+  const rev = data !== undefined ? revCache[cacheKey]! : getRevMaps(cacheKey, chordData);
   runJob(id, rev, target, maxEntries, (display, ways, output, outputSegments, waysIsBrief) => {
     if (currentJobId === id) self.postMessage({ type: "chunk", id, spellings: display, ways, output, outputSegments, waysIsBrief });
   });
