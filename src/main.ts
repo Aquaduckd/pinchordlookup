@@ -509,7 +509,6 @@ function processNextCsvWord(): void {
     const avgText = csvTableData.length > 0 ? csvRunningAvgText() : "";
     csvStatusEl.textContent = `Done. ${csvTableData.length} word(s).${avgText}`;
     csvComputeBtn.removeAttribute("disabled");
-    csvSaveBtn.removeAttribute("disabled");
     buildChordsTableAndRender();
     return;
   }
@@ -538,7 +537,6 @@ function processNextCsvWord(): void {
     csvWordQueue = [];
     csvStatusEl.textContent = "Paste valid chord JSON in the Config tab.";
     csvComputeBtn.removeAttribute("disabled");
-    csvSaveBtn.removeAttribute("disabled");
   }
 }
 
@@ -741,6 +739,7 @@ const panelLookup = document.getElementById("panel-lookup")!;
 const panelChords = document.getElementById("panel-chords")!;
 const panelCsv = document.getElementById("panel-csv")!;
 const panelConfig = document.getElementById("panel-config")!;
+const headerSaveCsvBtn = document.getElementById("header-save-csv-btn")!;
 
 function chordFileName(version: string): string {
   if (version.startsWith("pinechord-")) return `pinechord-chords-${version.slice(10)}.json`;
@@ -859,7 +858,6 @@ function parseCustomJson(): boolean {
 const csvWordlistEl = document.getElementById("csv-wordlist") as HTMLSelectElement;
 const csvWordsEl = document.getElementById("csv-words") as HTMLTextAreaElement;
 const csvComputeBtn = document.getElementById("csv-compute")!;
-const csvSaveBtn = document.getElementById("csv-save")!;
 const csvStatusEl = document.getElementById("csv-status")!;
 const csvTbody = document.getElementById("csv-tbody")!;
 const csvTabWords = document.getElementById("csv-tab-words")!;
@@ -1321,6 +1319,7 @@ function setActiveTab(active: "lookup" | "chords" | "csv" | "config"): void {
   panelChords.classList.toggle("hidden", active !== "chords");
   panelCsv.classList.toggle("hidden", active !== "csv");
   panelConfig.classList.toggle("hidden", active !== "config");
+  headerSaveCsvBtn.classList.toggle("hidden", active !== "chords" && active !== "csv");
   if (active === "chords") loadAndRenderChords();
 }
 
@@ -1333,31 +1332,54 @@ function escapeCsv(val: string): string {
   return '"' + val.replace(/"/g, '""') + '"';
 }
 
-csvComputeBtn.addEventListener("click", () => {
-  if (versionEl.value === "custom" && !customChordData) {
-    csvStatusEl.textContent = "Paste valid chord JSON in the Config tab first.";
-    return;
+function saveChordsTabToCsv(): void {
+  const tableId = chordsActiveSubTab;
+  const data = filterChordsData(chordsTableData[tableId], chordsSearchQuery, chordsSearchBy);
+  const chars = getColumnizeChars(columnizeChar[tableId] ?? "");
+  const { col: sortCol, dir: sortDir } = chordsSortState[tableId];
+  const version = versionEl.value;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const tabLabel = tableId === "initials" ? "initials" : tableId === "vowels" ? "vowels" : tableId === "finals" ? "finals" : "briefs";
+  let csv: string;
+  let filename: string;
+  if (chars.length > 0) {
+    const rows = buildColumnizedRows(data, chars);
+    const numCols = 1 + (1 << chars.length);
+    const stateCol = Math.max(0, Math.min(sortCol, numCols - 1));
+    const sorted = [...rows].sort((a, b) => {
+      const va = String(a[stateCol] ?? "");
+      const vb = String(b[stateCol] ?? "");
+      return va.localeCompare(vb, undefined, { sensitivity: "base", numeric: true }) * sortDir;
+    });
+    const labels = ["Stroke", ...Array.from({ length: 1 << chars.length }, (_, k) => columnizeLabel(k, chars))];
+    const header = labels.map((l) => escapeCsv(l)).join(",") + "\n";
+    const body = sorted
+      .map((row) => row.map((cell) => escapeCsv(String(cell ?? ""))).join(","))
+      .join("\n");
+    csv = header + body;
+    filename = `pinchord-chords-${tabLabel}-${version}-${timestamp}.csv`;
+  } else {
+    const sortColClamped = sortCol > 1 ? 0 : sortCol;
+    const entries = Object.entries(data).sort((a, b) => {
+      const va = a[sortColClamped] ?? "";
+      const vb = b[sortColClamped] ?? "";
+      return (va as string).localeCompare(vb as string, undefined, { sensitivity: "base", numeric: true }) * sortDir;
+    });
+    const header = "Stroke,Translation\n";
+    const body = entries.map(([stroke, outline]) => `${escapeCsv(stroke)},${escapeCsv(outline)}`).join("\n");
+    csv = header + body;
+    filename = `pinchord-chords-${tabLabel}-${version}-${timestamp}.csv`;
   }
-  const text = csvWordsEl.value.trim();
-  const words = text ? text.split(/\s+/).filter(Boolean) : [];
-  csvTableData = [];
-  csvRowBuffer = [];
-  csvTbody.innerHTML = "";
-  csvSortCol = 0;
-  csvSortDir = 1;
-  updateCsvSortIndicators();
-  if (words.length === 0) {
-    csvStatusEl.textContent = "Enter words separated by whitespace.";
-    return;
-  }
-  csvWordQueue = [...words];
-  csvTotalWords = words.length;
-  csvComputeBtn.setAttribute("disabled", "");
-  csvSaveBtn.setAttribute("disabled", "");
-  processNextCsvWord();
-});
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-csvSaveBtn.addEventListener("click", () => {
+function saveCsvTabToCsv(): void {
   const version = versionEl.value;
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   let csv: string;
@@ -1387,6 +1409,35 @@ csvSaveBtn.addEventListener("click", () => {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+csvComputeBtn.addEventListener("click", () => {
+  if (versionEl.value === "custom" && !customChordData) {
+    csvStatusEl.textContent = "Paste valid chord JSON in the Config tab first.";
+    return;
+  }
+  const text = csvWordsEl.value.trim();
+  const words = text ? text.split(/\s+/).filter(Boolean) : [];
+  csvTableData = [];
+  csvRowBuffer = [];
+  csvTbody.innerHTML = "";
+  csvSortCol = 0;
+  csvSortDir = 1;
+  updateCsvSortIndicators();
+  if (words.length === 0) {
+    csvStatusEl.textContent = "Enter words separated by whitespace.";
+    return;
+  }
+  csvWordQueue = [...words];
+  csvTotalWords = words.length;
+  csvComputeBtn.setAttribute("disabled", "");
+  processNextCsvWord();
+});
+
+headerSaveCsvBtn.addEventListener("click", () => {
+  const tab = getTabFromHash();
+  if (tab === "chords") saveChordsTabToCsv();
+  else if (tab === "csv") saveCsvTabToCsv();
 });
 
 window.addEventListener("hashchange", () => {
