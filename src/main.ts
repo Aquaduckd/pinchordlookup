@@ -1672,13 +1672,30 @@ jsonbuilderCsvSeparator?.addEventListener("change", () => {
 jsonbuilderCsvSeparatorCustom?.addEventListener("input", updateJsonbuilderPlaceholders);
 jsonbuilderCsvSeparatorCustom?.addEventListener("change", updateJsonbuilderPlaceholders);
 
-jsonbuilderLoadConfigBtn.addEventListener("click", () => {
-  if (!customChordData) {
-    jsonbuilderStatus.textContent = "No custom chord data in Config.";
+jsonbuilderLoadConfigBtn.addEventListener("click", async () => {
+  const version = versionEl.value;
+  let d: ChordData | null = null;
+  if (version === "custom") {
+    d = customChordData;
+    if (!d) {
+      jsonbuilderStatus.textContent = "Paste chord JSON in the Config tab first.";
+      jsonbuilderStatus.classList.remove("text-red-600");
+      return;
+    }
+  } else {
+    jsonbuilderStatus.textContent = "Loading…";
     jsonbuilderStatus.classList.remove("text-red-600");
-    return;
+    try {
+      const res = await fetch(`chord-versions/${chordFileName(version)}`);
+      if (!res.ok) throw new Error(res.statusText);
+      d = (await res.json()) as ChordData;
+    } catch (e) {
+      jsonbuilderStatus.textContent = "Failed to load chord data.";
+      jsonbuilderStatus.classList.add("text-red-600");
+      return;
+    }
   }
-  const d = customChordData;
+  if (!d) return;
   if (jsonbuilderInitials) jsonbuilderInitials.value = formatKeyValueLines(d.initials ?? {});
   if (jsonbuilderVowels) jsonbuilderVowels.value = formatKeyValueLines(d.vowels ?? {});
   if (jsonbuilderFinals) jsonbuilderFinals.value = formatKeyValueLines(d.finals ?? {});
@@ -1689,7 +1706,11 @@ jsonbuilderLoadConfigBtn.addEventListener("click", () => {
   if (jsonbuilderBankFinals) jsonbuilderBankFinals.value = d.banks?.finals ?? "";
   if (jsonbuilderBriefs) jsonbuilderBriefs.value = formatKeyValueLines(d.briefs ?? {});
   if (jsonbuilderKeyOrder) jsonbuilderKeyOrder.value = d.keyOrder ?? "";
-  jsonbuilderStatus.textContent = "Loaded from Config.";
+  if (jsonbuilderInitialsCsv) jsonbuilderInitialsCsv.checked = false;
+  if (jsonbuilderVowelsCsv) jsonbuilderVowelsCsv.checked = false;
+  if (jsonbuilderFinalsCsv) jsonbuilderFinalsCsv.checked = false;
+  updateJsonbuilderPlaceholders();
+  jsonbuilderStatus.textContent = version === "custom" ? "Loaded from Config." : `Loaded ${version}.`;
   jsonbuilderStatus.classList.remove("text-red-600");
 });
 
