@@ -1109,6 +1109,22 @@ function buildColumnizedRows(
   return Array.from(map.values());
 }
 
+/** Filter columnized rows by search query. row[0] = base stroke, row[1..] = translations. */
+function filterColumnizedRows(
+  rows: (string | string)[][],
+  query: string,
+  by: "stroke" | "outline"
+): (string | string)[][] {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows;
+  if (by === "stroke") {
+    return rows.filter((row) => (String(row[0] ?? "").toLowerCase().includes(q)));
+  }
+  return rows.filter((row) =>
+    row.some((cell, j) => j > 0 && String(cell ?? "").toLowerCase().includes(q))
+  );
+}
+
 function fillChordTable(
   tbody: HTMLElement,
   data: Record<string, string>,
@@ -1197,14 +1213,18 @@ function updateChordsSortIndicators(
 }
 
 function renderChordsTable(tableId: ChordsTableId): void {
-  const data = filterChordsData(chordsTableData[tableId], chordsSearchQuery, chordsSearchBy);
   const { col, dir } = chordsSortState[tableId];
   const section = chordsTables.querySelector(`[data-chords-table="${tableId}"]`);
   const theadRow = section?.querySelector("thead tr");
   const chars = getColumnizeChars(columnizeChar[tableId] ?? "");
   const numCols = chars.length ? 2 + (1 << chars.length) : 3;
   if (chars.length > 0 && theadRow) {
-    const rows = buildColumnizedRows(data, chars);
+    // Columnize first, then filter (so stroke search matches base stroke, e.g. "TB" shows -TB row with all H/R variants).
+    const rows = filterColumnizedRows(
+      buildColumnizedRows(chordsTableData[tableId], chars),
+      chordsSearchQuery,
+      chordsSearchBy
+    );
     const stateCol = Math.max(0, Math.min(col, numCols - 1));
     const thClass =
       "chords-th text-left px-3 py-2 border-b border-gray-200 font-medium cursor-pointer select-none hover:bg-gray-200";
@@ -1215,6 +1235,7 @@ function renderChordsTable(tableId: ChordsTableId): void {
     fillChordTableColumnized(chordsTbodies[tableId], rows, numCols, stateCol, dir, MAX_CHORD_TABLE_ROWS);
     if (section) updateChordsSortIndicators(section, stateCol, dir, labels);
   } else {
+    const data = filterChordsData(chordsTableData[tableId], chordsSearchQuery, chordsSearchBy);
     if (theadRow) {
       (theadRow as HTMLElement).innerHTML =
         '<th class="chords-th text-left px-3 py-2 border-b border-gray-200 font-medium cursor-pointer select-none hover:bg-gray-200" scope="col">Index</th><th class="chords-th text-left px-3 py-2 border-b border-gray-200 font-medium cursor-pointer select-none hover:bg-gray-200" scope="col">Stroke</th><th class="chords-th text-left px-3 py-2 border-b border-gray-200 font-medium cursor-pointer select-none hover:bg-gray-200" scope="col">Translation</th>';
@@ -1374,7 +1395,6 @@ function escapeCsv(val: string): string {
 
 function saveChordsTabToCsv(): void {
   const tableId = chordsActiveSubTab;
-  const data = filterChordsData(chordsTableData[tableId], chordsSearchQuery, chordsSearchBy);
   const chars = getColumnizeChars(columnizeChar[tableId] ?? "");
   const { col: sortCol, dir: sortDir } = chordsSortState[tableId];
   const version = versionEl.value;
@@ -1383,7 +1403,11 @@ function saveChordsTabToCsv(): void {
   let csv: string;
   let filename: string;
   if (chars.length > 0) {
-    const rows = buildColumnizedRows(data, chars);
+    const rows = filterColumnizedRows(
+      buildColumnizedRows(chordsTableData[tableId], chars),
+      chordsSearchQuery,
+      chordsSearchBy
+    );
     const numCols = 2 + (1 << chars.length);
     const stateCol = Math.max(0, Math.min(sortCol, numCols - 1));
     const dataCol = stateCol === 0 ? 0 : stateCol - 1;
@@ -1401,6 +1425,7 @@ function saveChordsTabToCsv(): void {
     csv = header + body;
     filename = `pinchord-chords-${tabLabel}-${version}-${timestamp}.csv`;
   } else {
+    const data = filterChordsData(chordsTableData[tableId], chordsSearchQuery, chordsSearchBy);
     const dataCol = sortCol === 0 ? 1 : sortCol;
     const entries = Object.entries(data).sort((a, b) => {
       const va = a[dataCol - 1] ?? "";
