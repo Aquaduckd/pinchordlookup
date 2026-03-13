@@ -20,14 +20,15 @@ const URL_PARAM_SEARCH = "search";
 const DEFAULT_VERSION = "v26.0";
 const DEFAULT_MAX = "100";
 
-/** Chord JSON: initials, vowels, finals, suffixes, briefs, banks, and keyOrder (required). */
+/** Chord JSON: initials, vowels, finals, prefixes, suffixes, briefs, banks, and keyOrder. */
 type ChordData = {
   initials?: Record<string, string>;
   vowels?: Record<string, string>;
   finals?: Record<string, string>;
+  prefixes?: Record<string, string>;
   suffixes?: Record<string, string>;
   briefs?: Record<string, string>;
-  banks?: { initials?: string; vowels?: string; finals?: string };
+  banks?: { initials?: string; vowels?: string; finals?: string; prefixes?: string };
   keyOrder?: string;
 };
 
@@ -50,11 +51,12 @@ function getUrlParams(): {
   };
 }
 
-function getTabFromHash(): "lookup" | "chords" | "csv" | "config" {
+function getTabFromHash(): "lookup" | "chords" | "csv" | "config" | "jsonbuilder" {
   const hash = window.location.hash.slice(1).toLowerCase();
   if (hash === "chords") return "chords";
   if (hash === "csv") return "csv";
   if (hash === "config") return "config";
+  if (hash === "jsonbuilder") return "jsonbuilder";
   return "lookup";
 }
 
@@ -69,6 +71,7 @@ function applyUrlParams(): void {
   }
   if (tab === "csv") window.location.hash = "csv";
   if (tab === "config") window.location.hash = "config";
+  if (tab === "jsonbuilder") window.location.hash = "jsonbuilder";
   if (version != null) {
     const option = Array.from(versionEl.options).find((o) => o.value === version);
     if (option) {
@@ -739,10 +742,12 @@ const tabLookup = document.getElementById("tab-lookup")!;
 const tabChords = document.getElementById("tab-chords")!;
 const tabCsv = document.getElementById("tab-csv")!;
 const tabConfig = document.getElementById("tab-config")!;
+const tabJsonBuilder = document.getElementById("tab-jsonbuilder")!;
 const panelLookup = document.getElementById("panel-lookup")!;
 const panelChords = document.getElementById("panel-chords")!;
 const panelCsv = document.getElementById("panel-csv")!;
 const panelConfig = document.getElementById("panel-config")!;
+const panelJsonBuilder = document.getElementById("panel-jsonbuilder")!;
 const headerSaveCsvBtn = document.getElementById("header-save-csv-btn")!;
 
 function chordFileName(version: string): string {
@@ -1308,12 +1313,13 @@ async function loadAndRenderChords(): Promise<void> {
   }
 }
 
-function setActiveTab(active: "lookup" | "chords" | "csv" | "config"): void {
+function setActiveTab(active: "lookup" | "chords" | "csv" | "config" | "jsonbuilder"): void {
   for (const [t, el] of [
     ["lookup", tabLookup],
     ["chords", tabChords],
     ["csv", tabCsv],
     ["config", tabConfig],
+    ["jsonbuilder", tabJsonBuilder],
   ] as const) {
     const on = active === t;
     el.classList.toggle("border-indigo-500", on);
@@ -1326,11 +1332,12 @@ function setActiveTab(active: "lookup" | "chords" | "csv" | "config"): void {
   panelChords.classList.toggle("hidden", active !== "chords");
   panelCsv.classList.toggle("hidden", active !== "csv");
   panelConfig.classList.toggle("hidden", active !== "config");
+  panelJsonBuilder.classList.toggle("hidden", active !== "jsonbuilder");
   headerSaveCsvBtn.classList.toggle("hidden", active !== "chords" && active !== "csv");
   if (active === "chords") loadAndRenderChords();
 }
 
-function switchTab(tab: "lookup" | "chords" | "csv" | "config"): void {
+function switchTab(tab: "lookup" | "chords" | "csv" | "config" | "jsonbuilder"): void {
   setActiveTab(tab);
 }
 
@@ -1360,10 +1367,10 @@ function saveChordsTabToCsv(): void {
       const c = va.localeCompare(vb, undefined, { sensitivity: "base", numeric: true });
       return c * sortDir;
     });
-    const labels = ["Index", "Stroke", ...Array.from({ length: 1 << chars.length }, (_, k) => columnizeLabel(k, chars))];
+    const labels = ["Stroke", ...Array.from({ length: 1 << chars.length }, (_, k) => columnizeLabel(k, chars))];
     const header = labels.map((l) => escapeCsv(l)).join(",") + "\n";
     const body = sorted
-      .map((row, i) => [String(i + 1), ...row].map((cell) => escapeCsv(String(cell ?? ""))).join(","))
+      .map((row) => row.map((cell) => escapeCsv(String(cell ?? ""))).join(","))
       .join("\n");
     csv = header + body;
     filename = `pinchord-chords-${tabLabel}-${version}-${timestamp}.csv`;
@@ -1374,8 +1381,8 @@ function saveChordsTabToCsv(): void {
       const vb = b[dataCol - 1] ?? "";
       return (va as string).localeCompare(vb as string, undefined, { sensitivity: "base", numeric: true }) * sortDir;
     });
-    const header = "Index,Stroke,Translation\n";
-    const body = entries.map(([stroke, outline], i) => `${i + 1},${escapeCsv(stroke)},${escapeCsv(outline)}`).join("\n");
+    const header = "Stroke,Translation\n";
+    const body = entries.map(([stroke, outline]) => `${escapeCsv(stroke)},${escapeCsv(outline)}`).join("\n");
     csv = header + body;
     filename = `pinchord-chords-${tabLabel}-${version}-${timestamp}.csv`;
   }
@@ -1447,6 +1454,243 @@ headerSaveCsvBtn.addEventListener("click", () => {
   const tab = getTabFromHash();
   if (tab === "chords") saveChordsTabToCsv();
   else if (tab === "csv") saveCsvTabToCsv();
+});
+
+// JSON Builder tab
+const jsonbuilderCsvSeparator = document.getElementById("jsonbuilder-csv-separator") as HTMLSelectElement;
+const jsonbuilderCsvSeparatorCustom = document.getElementById("jsonbuilder-csv-separator-custom") as HTMLInputElement;
+const jsonbuilderInitials = document.getElementById("jsonbuilder-initials") as HTMLTextAreaElement;
+const jsonbuilderInitialsCsv = document.getElementById("jsonbuilder-initials-csv") as HTMLInputElement;
+const jsonbuilderVowels = document.getElementById("jsonbuilder-vowels") as HTMLTextAreaElement;
+const jsonbuilderVowelsCsv = document.getElementById("jsonbuilder-vowels-csv") as HTMLInputElement;
+const jsonbuilderFinals = document.getElementById("jsonbuilder-finals") as HTMLTextAreaElement;
+const jsonbuilderFinalsCsv = document.getElementById("jsonbuilder-finals-csv") as HTMLInputElement;
+const jsonbuilderPrefixes = document.getElementById("jsonbuilder-prefixes") as HTMLTextAreaElement;
+const jsonbuilderSuffixes = document.getElementById("jsonbuilder-suffixes") as HTMLTextAreaElement;
+const jsonbuilderBankInitials = document.getElementById("jsonbuilder-bank-initials") as HTMLInputElement;
+const jsonbuilderBankVowels = document.getElementById("jsonbuilder-bank-vowels") as HTMLInputElement;
+const jsonbuilderBankFinals = document.getElementById("jsonbuilder-bank-finals") as HTMLInputElement;
+const jsonbuilderBriefs = document.getElementById("jsonbuilder-briefs") as HTMLTextAreaElement;
+const jsonbuilderKeyOrder = document.getElementById("jsonbuilder-keyorder") as HTMLInputElement;
+const jsonbuilderBuildCopyBtn = document.getElementById("jsonbuilder-build-copy")!;
+const jsonbuilderLoadConfigBtn = document.getElementById("jsonbuilder-load-config")!;
+const jsonbuilderStatus = document.getElementById("jsonbuilder-status")!;
+
+/** Parse "key value" per line (first whitespace separates key from value). */
+function parseKeyValueLines(s: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const lines = s.split(/\r?\n/);
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+    const m = t.match(/^(\S+)\s+(.*)$/);
+    if (m) out[m[1]!] = m[2]!.trim();
+    else out[t] = "";
+  }
+  return out;
+}
+
+const JSONBUILDER_PLACEHOLDER_KEYVAL = {
+  initials: "B b\nC c\nBC p",
+  vowels: "A a\nO o\nEU eu",
+  finals: "N n\nS s\nNG ng",
+} as const;
+
+function getJsonbuilderCsvPlaceholder(sep: string): string {
+  const s = sep || ",";
+  return `Stroke${s}Translation\nB${s}b\nC${s}c`;
+}
+
+function getJsonbuilderCsvSeparator(): string {
+  const mode = jsonbuilderCsvSeparator?.value ?? "tab";
+  if (mode === "tab") return "\t";
+  if (mode === "custom") {
+    const v = (jsonbuilderCsvSeparatorCustom?.value ?? "").trim();
+    return v || "\t";
+  }
+  return ",";
+}
+
+function updateJsonbuilderCsvSeparatorUi(): void {
+  const isCustom = jsonbuilderCsvSeparator?.value === "custom";
+  if (jsonbuilderCsvSeparatorCustom) {
+    jsonbuilderCsvSeparatorCustom.classList.toggle("hidden", !isCustom);
+    if (isCustom && !jsonbuilderCsvSeparatorCustom.value.trim()) jsonbuilderCsvSeparatorCustom.placeholder = ",";
+  }
+}
+
+function updateJsonbuilderPlaceholders(): void {
+  const sep = getJsonbuilderCsvSeparator();
+  const csvPlaceholder = getJsonbuilderCsvPlaceholder(sep);
+  if (jsonbuilderInitials) {
+    jsonbuilderInitials.placeholder = jsonbuilderInitialsCsv?.checked ? csvPlaceholder : JSONBUILDER_PLACEHOLDER_KEYVAL.initials;
+  }
+  if (jsonbuilderVowels) {
+    jsonbuilderVowels.placeholder = jsonbuilderVowelsCsv?.checked ? csvPlaceholder : JSONBUILDER_PLACEHOLDER_KEYVAL.vowels;
+  }
+  if (jsonbuilderFinals) {
+    jsonbuilderFinals.placeholder = jsonbuilderFinalsCsv?.checked ? csvPlaceholder : JSONBUILDER_PLACEHOLDER_KEYVAL.finals;
+  }
+}
+
+/** Parse one CSV row (handles quoted fields). Supports single- or multi-char separator. */
+function parseCsvRow(line: string, sep: string): string[] {
+  const out: string[] = [];
+  const s = sep || ",";
+  const sepLen = s.length;
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '"') {
+      let cell = "";
+      i++;
+      while (i < line.length) {
+        if (line[i] === '"') {
+          i++;
+          if (line[i] === '"') {
+            cell += '"';
+            i++;
+          } else break;
+        } else {
+          cell += line[i];
+          i++;
+        }
+      }
+      out.push(cell);
+    } else {
+      let cell = "";
+      while (i < line.length) {
+        const isSep = sepLen === 1 ? line[i] === s : line.slice(i, i + sepLen) === s;
+        if (isSep) {
+          i += sepLen;
+          break;
+        }
+        cell += line[i];
+        i++;
+      }
+      out.push(cell.trim());
+    }
+  }
+  return out;
+}
+
+/** Parse CSV from Chords tab Save to CSV: header Index,Stroke,Translation or Index,Stroke,none,&,... */
+function parseChordsCsvToRecord(csvText: string, sep: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const lines = csvText.trim().split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return out;
+  const header = parseCsvRow(lines[0]!, sep);
+  const strokeCol = header.indexOf("Stroke");
+  if (strokeCol === -1) return out;
+  const valueColStart = strokeCol + 1;
+  const valueLabels = header.slice(valueColStart);
+  for (let r = 1; r < lines.length; r++) {
+    const row = parseCsvRow(lines[r]!, sep);
+    const base = (row[strokeCol] ?? "").trim();
+    if (!base) continue;
+    for (let c = 0; c < valueLabels.length; c++) {
+      const label = valueLabels[c] ?? "";
+      const value = (row[valueColStart + c] ?? "").trim();
+      const key = label === "none" ? base : base + label;
+      if (key) out[key] = value;
+    }
+  }
+  return out;
+}
+
+function formatKeyValueLines(rec: Record<string, string>): string {
+  return Object.entries(rec)
+    .map(([k, v]) => (v ? `${k} ${v}` : k))
+    .join("\n");
+}
+
+function buildJsonBuilderOutput(): { json: string; error?: string } {
+  const csvSep = getJsonbuilderCsvSeparator();
+  const initials = jsonbuilderInitialsCsv?.checked
+    ? parseChordsCsvToRecord(jsonbuilderInitials?.value ?? "", csvSep)
+    : parseKeyValueLines(jsonbuilderInitials?.value ?? "");
+  const vowels = jsonbuilderVowelsCsv?.checked
+    ? parseChordsCsvToRecord(jsonbuilderVowels?.value ?? "", csvSep)
+    : parseKeyValueLines(jsonbuilderVowels?.value ?? "");
+  const finals = jsonbuilderFinalsCsv?.checked
+    ? parseChordsCsvToRecord(jsonbuilderFinals?.value ?? "", csvSep)
+    : parseKeyValueLines(jsonbuilderFinals?.value ?? "");
+  const prefixes = parseKeyValueLines(jsonbuilderPrefixes?.value ?? "");
+  const suffixes = parseKeyValueLines(jsonbuilderSuffixes?.value ?? "");
+  const bankInitials = (jsonbuilderBankInitials?.value ?? "").trim();
+  const bankVowels = (jsonbuilderBankVowels?.value ?? "").trim();
+  const bankFinals = (jsonbuilderBankFinals?.value ?? "").trim();
+  const briefs = parseKeyValueLines(jsonbuilderBriefs?.value ?? "");
+  const keyOrder = (jsonbuilderKeyOrder?.value ?? "").trim();
+
+  const banks: { initials?: string; vowels?: string; finals?: string } = {};
+  if (bankInitials) banks.initials = bankInitials;
+  if (bankVowels) banks.vowels = bankVowels;
+  if (bankFinals) banks.finals = bankFinals;
+
+  const out: ChordData = {};
+  if (Object.keys(initials).length > 0) out.initials = initials;
+  if (Object.keys(vowels).length > 0) out.vowels = vowels;
+  if (Object.keys(finals).length > 0) out.finals = finals;
+  if (Object.keys(prefixes).length > 0) out.prefixes = prefixes;
+  if (Object.keys(suffixes).length > 0) out.suffixes = suffixes;
+  if (Object.keys(banks).length > 0) out.banks = banks;
+  if (Object.keys(briefs).length > 0) out.briefs = briefs;
+  if (keyOrder.length > 0) out.keyOrder = keyOrder;
+
+  try {
+    return { json: JSON.stringify(out, null, 2) };
+  } catch (e) {
+    return { json: "", error: e instanceof Error ? e.message : "Stringify failed" };
+  }
+}
+
+jsonbuilderBuildCopyBtn.addEventListener("click", async () => {
+  const { json, error } = buildJsonBuilderOutput();
+  if (error) {
+    jsonbuilderStatus.textContent = error;
+    jsonbuilderStatus.classList.add("text-red-600");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(json);
+    jsonbuilderStatus.textContent = "Copied to clipboard.";
+    jsonbuilderStatus.classList.remove("text-red-600");
+  } catch {
+    jsonbuilderStatus.textContent = "Copy failed (check permissions).";
+    jsonbuilderStatus.classList.add("text-red-600");
+  }
+});
+
+[jsonbuilderInitialsCsv, jsonbuilderVowelsCsv, jsonbuilderFinalsCsv].forEach((el) => {
+  el?.addEventListener("change", updateJsonbuilderPlaceholders);
+});
+updateJsonbuilderCsvSeparatorUi();
+jsonbuilderCsvSeparator?.addEventListener("change", () => {
+  updateJsonbuilderCsvSeparatorUi();
+  updateJsonbuilderPlaceholders();
+});
+jsonbuilderCsvSeparatorCustom?.addEventListener("input", updateJsonbuilderPlaceholders);
+jsonbuilderCsvSeparatorCustom?.addEventListener("change", updateJsonbuilderPlaceholders);
+
+jsonbuilderLoadConfigBtn.addEventListener("click", () => {
+  if (!customChordData) {
+    jsonbuilderStatus.textContent = "No custom chord data in Config.";
+    jsonbuilderStatus.classList.remove("text-red-600");
+    return;
+  }
+  const d = customChordData;
+  if (jsonbuilderInitials) jsonbuilderInitials.value = formatKeyValueLines(d.initials ?? {});
+  if (jsonbuilderVowels) jsonbuilderVowels.value = formatKeyValueLines(d.vowels ?? {});
+  if (jsonbuilderFinals) jsonbuilderFinals.value = formatKeyValueLines(d.finals ?? {});
+  if (jsonbuilderPrefixes) jsonbuilderPrefixes.value = formatKeyValueLines(d.prefixes ?? {});
+  if (jsonbuilderSuffixes) jsonbuilderSuffixes.value = formatKeyValueLines(d.suffixes ?? {});
+  if (jsonbuilderBankInitials) jsonbuilderBankInitials.value = d.banks?.initials ?? "";
+  if (jsonbuilderBankVowels) jsonbuilderBankVowels.value = d.banks?.vowels ?? "";
+  if (jsonbuilderBankFinals) jsonbuilderBankFinals.value = d.banks?.finals ?? "";
+  if (jsonbuilderBriefs) jsonbuilderBriefs.value = formatKeyValueLines(d.briefs ?? {});
+  if (jsonbuilderKeyOrder) jsonbuilderKeyOrder.value = d.keyOrder ?? "";
+  jsonbuilderStatus.textContent = "Loaded from Config.";
+  jsonbuilderStatus.classList.remove("text-red-600");
 });
 
 window.addEventListener("hashchange", () => {

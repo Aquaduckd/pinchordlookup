@@ -22,6 +22,7 @@
         <a href="#chords" id="tab-chords" class="tab px-5 py-3.5 text-sm font-medium border-b-2 border-transparent -mb-px text-gray-600 hover:text-gray-900 hover:border-gray-300 rounded-t-lg transition-colors">Chords</a>
         <a href="#csv" id="tab-csv" class="tab px-5 py-3.5 text-sm font-medium border-b-2 border-transparent -mb-px text-gray-600 hover:text-gray-900 hover:border-gray-300 rounded-t-lg transition-colors">CSV</a>
         <a href="#config" id="tab-config" class="tab px-5 py-3.5 text-sm font-medium border-b-2 border-transparent -mb-px text-gray-600 hover:text-gray-900 hover:border-gray-300 rounded-t-lg transition-colors">Config</a>
+        <a href="#jsonbuilder" id="tab-jsonbuilder" class="tab px-5 py-3.5 text-sm font-medium border-b-2 border-transparent -mb-px text-gray-600 hover:text-gray-900 hover:border-gray-300 rounded-t-lg transition-colors">JSON Builder</a>
       </nav>
       <button type="button" id="header-save-csv-btn" class="hidden rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none" aria-label="Save to CSV">Save to CSV</button>
     </div>
@@ -216,6 +217,83 @@
         </thead>
         <tbody id="csv-chords-tbody" class="bg-white"></tbody>
       </table>
+    </div>
+  </main>
+
+  <!-- JSON Builder panel -->
+  <main id="panel-jsonbuilder" class="tab-panel hidden flex flex-col flex-1 min-h-0 w-full max-w-6xl px-4 pt-8 pb-8 max-h-[calc(100vh-5rem)] overflow-auto">
+    <div class="flex flex-wrap items-center gap-4 mb-4">
+      <p class="text-sm text-gray-600">One <strong>key value</strong> pair per line, separated by whitespace. Leave a section empty to omit it. <strong>keyOrder</strong> is typically 24 characters.</p>
+      <label class="flex items-center gap-2 text-sm text-gray-700">
+        CSV separator
+        <select id="jsonbuilder-csv-separator" class="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" aria-label="CSV separator (used when Parse as CSV is checked)">
+          <option value="comma">Comma</option>
+          <option value="tab" selected>Tab</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input type="text" id="jsonbuilder-csv-separator-custom" maxlength="4" size="2" placeholder="," class="rounded border border-gray-300 bg-white px-2 py-1 text-sm font-mono text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 hidden" aria-label="Custom CSV separator" />
+      </label>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <section class="flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <label for="jsonbuilder-initials" class="text-sm font-medium text-gray-700">initials</label>
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" id="jsonbuilder-initials-csv" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" aria-label="Parse initials as CSV" />
+            Parse as CSV
+          </label>
+        </div>
+        <textarea id="jsonbuilder-initials" rows="4" placeholder="B b&#10;C c&#10;BC p" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false"></textarea>
+      </section>
+      <section class="flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <label for="jsonbuilder-vowels" class="text-sm font-medium text-gray-700">vowels</label>
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" id="jsonbuilder-vowels-csv" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" aria-label="Parse vowels as CSV" />
+            Parse as CSV
+          </label>
+        </div>
+        <textarea id="jsonbuilder-vowels" rows="4" placeholder="A a&#10;O o&#10;EU eu" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false"></textarea>
+      </section>
+      <section class="flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <label for="jsonbuilder-finals" class="text-sm font-medium text-gray-700">finals</label>
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" id="jsonbuilder-finals-csv" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" aria-label="Parse finals as CSV" />
+            Parse as CSV
+          </label>
+        </div>
+        <textarea id="jsonbuilder-finals" rows="4" placeholder="N n&#10;S s&#10;NG ng" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false"></textarea>
+      </section>
+      <section class="flex flex-col gap-1">
+        <label for="jsonbuilder-prefixes" class="text-sm font-medium text-gray-700">prefixes</label>
+        <textarea id="jsonbuilder-prefixes" rows="2" placeholder="# {-|}&#10;+ {^}" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false"></textarea>
+      </section>
+      <section class="flex flex-col gap-1">
+        <label for="jsonbuilder-suffixes" class="text-sm font-medium text-gray-700">suffixes</label>
+        <textarea id="jsonbuilder-suffixes" rows="2" placeholder="e e&#10;s s" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false"></textarea>
+      </section>
+      <section class="flex flex-col gap-1">
+        <label class="text-sm font-medium text-gray-700">banks</label>
+        <div class="flex flex-col gap-2">
+          <input type="text" id="jsonbuilder-bank-initials" placeholder="initials (e.g. TSPWHR)" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false" />
+          <input type="text" id="jsonbuilder-bank-vowels" placeholder="vowels (e.g. AOEU)" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false" />
+          <input type="text" id="jsonbuilder-bank-finals" placeholder="finals (e.g. LRPKFST)" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false" />
+        </div>
+      </section>
+      <section class="flex flex-col gap-1">
+        <label for="jsonbuilder-briefs" class="text-sm font-medium text-gray-700">briefs</label>
+        <textarea id="jsonbuilder-briefs" rows="4" placeholder="TH the&#10;AND and" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false"></textarea>
+      </section>
+      <section class="flex flex-col gap-1">
+        <label for="jsonbuilder-keyorder" class="text-sm font-medium text-gray-700">keyOrder</label>
+        <input type="text" id="jsonbuilder-keyorder" maxlength="64" placeholder="24 key characters, e.g. TSPWHR*EUOIA-FBLRDZ..." class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" spellcheck="false" />
+      </section>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="button" id="jsonbuilder-build-copy" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Build & copy JSON</button>
+      <button type="button" id="jsonbuilder-load-config" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Load from Config</button>
+      <p id="jsonbuilder-status" class="text-sm text-gray-500" aria-live="polite"></p>
     </div>
   </main>
 
