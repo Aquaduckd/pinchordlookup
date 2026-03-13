@@ -10,6 +10,8 @@ type ChordData = {
 };
 
 type Strokes = [string, string, string, string];
+/** Stroke plus explicit brief flag (from briefs map vs I/V/F/S split). */
+type ChordMatch = { stroke: Strokes; isBrief: boolean };
 
 type RevMaps = {
   revInitials: Record<string, string[]>;
@@ -59,8 +61,8 @@ function chordRepr(strokes: Strokes): string {
 }
 
 /** All chords that produce exactly the substring s (I+V+F+S plus briefs; same as repo TryFindAnyChord/FindChords). */
-function getChordsForSubstring(s: string, rev: RevMaps): Strokes[] {
-  const list: Strokes[] = [];
+function getChordsForSubstring(s: string, rev: RevMaps): ChordMatch[] {
+  const list: ChordMatch[] = [];
   const n = s.length;
   for (let p1 = 0; p1 <= n; p1++) {
     for (let p2 = p1; p2 <= n; p2++) {
@@ -79,7 +81,7 @@ function getChordsForSubstring(s: string, rev: RevMaps): Strokes[] {
             for (const k2 of keys2) {
               for (const k3 of keys3) {
                 if (k0.length > 0 || k1.length > 0 || k2.length > 0 || k3.length > 0) {
-                  list.push([k0, k1, k2, k3]);
+                  list.push({ stroke: [k0, k1, k2, k3], isBrief: false });
                 }
               }
             }
@@ -90,27 +92,27 @@ function getChordsForSubstring(s: string, rev: RevMaps): Strokes[] {
   }
   if (rev.revBriefs[s]) {
     for (const key of rev.revBriefs[s]) {
-      if (key.length > 0) list.push([key, "", "", ""]);
+      if (key.length > 0) list.push({ stroke: [key, "", "", ""], isBrief: true });
     }
   }
   return list;
 }
 
 /** Chords whose output is a prefix of target, longest first. */
-function getPrefixChords(target: string, rev: RevMaps): [string, Strokes][] {
-  const list: [string, Strokes][] = [];
+function getPrefixChords(target: string, rev: RevMaps): [string, ChordMatch][] {
+  const list: [string, ChordMatch][] = [];
   for (let len = target.length; len >= 1; len--) {
     const prefix = target.slice(0, len);
     const chords = getChordsForSubstring(prefix, rev);
-    for (const strokes of chords) {
-      list.push([prefix, strokes]);
+    for (const m of chords) {
+      list.push([prefix, m]);
     }
   }
   return list;
 }
 
-/** One chord that produces the longest prefix of target (for greedy step). Returns (length, strokes) or (0, null). */
-function findLongestChordPrefix(target: string, rev: RevMaps): [number, Strokes | null] {
+/** One chord that produces the longest prefix of target (for greedy step). Returns (length, match) or (0, null). */
+function findLongestChordPrefix(target: string, rev: RevMaps): [number, ChordMatch | null] {
   if (!target.length) return [0, null];
   for (let len = target.length; len >= 1; len--) {
     const prefix = target.slice(0, len);
@@ -121,14 +123,14 @@ function findLongestChordPrefix(target: string, rev: RevMaps): [number, Strokes 
 }
 
 /** Greedy shortest chord sequence (same as 1PinSharp FindShortestChordSequence). Returns null if no sequence exists. */
-function findShortestChordSequence(target: string, rev: RevMaps): [string, Strokes][] | null {
-  const way: [string, Strokes][] = [];
+function findShortestChordSequence(target: string, rev: RevMaps): [string, ChordMatch][] | null {
+  const way: [string, ChordMatch][] = [];
   let remaining = target;
   while (remaining.length > 0) {
-    const [len, strokes] = findLongestChordPrefix(remaining, rev);
-    if (len === 0 || strokes === null) return null;
+    const [len, match] = findLongestChordPrefix(remaining, rev);
+    if (len === 0 || match === null) return null;
     const segment = remaining.slice(0, len);
-    way.push([segment, strokes]);
+    way.push([segment, match]);
     remaining = remaining.slice(len);
   }
   return way;
@@ -137,8 +139,8 @@ function findShortestChordSequence(target: string, rev: RevMaps): [string, Strok
 function* findSpellingsGenerator(
   target: string,
   rev: RevMaps,
-  memo: Record<string, [string, Strokes][][]> = {}
-): Generator<[string, Strokes][]> {
+  memo: Record<string, [string, ChordMatch][][]> = {}
+): Generator<[string, ChordMatch][]> {
   if (target === "") {
     memo[""] = [[]];
     yield [];
@@ -149,11 +151,11 @@ function* findSpellingsGenerator(
     return;
   }
   const chordList = getPrefixChords(target, rev);
-  const ways: [string, Strokes][][] = [];
-  for (const [out, strokes] of chordList) {
+  const ways: [string, ChordMatch][][] = [];
+  for (const [out, match] of chordList) {
     const rest = target.slice(out.length);
     for (const restWay of findSpellingsGenerator(rest, rev, memo)) {
-      const way: [string, Strokes][] = [[out, strokes], ...restWay];
+      const way: [string, ChordMatch][] = [[out, match], ...restWay];
       ways.push(way);
       yield way;
     }
@@ -216,8 +218,8 @@ async function startJob(
     throw new Error("Either version or data must be provided");
   }
   const rev = getRevMaps(cacheKey, chordData);
-  runJob(id, rev, target, maxEntries, (display, ways, output, outputSegments) => {
-    if (currentJobId === id) self.postMessage({ type: "chunk", id, spellings: display, ways, output, outputSegments });
+  runJob(id, rev, target, maxEntries, (display, ways, output, outputSegments, waysIsBrief) => {
+    if (currentJobId === id) self.postMessage({ type: "chunk", id, spellings: display, ways, output, outputSegments, waysIsBrief });
   });
 }
 
@@ -226,7 +228,7 @@ function runJob(
   rev: RevMaps,
   target: string,
   maxEntries: number | undefined,
-  onChunk: (display: string[], ways: Strokes[][], output?: string, outputSegments?: string[][]) => void
+  onChunk: (display: string[], ways: Strokes[][], output?: string, outputSegments?: string[][], waysIsBrief?: boolean[][]) => void
 ): void {
   jobRunning = true;
   (async () => {
@@ -236,23 +238,24 @@ function runJob(
         const way = findShortestChordSequence(target, rev);
         if (currentJobId === id) {
           if (way && way.length > 0) {
-            const display = way.map(([, s]) => chordRepr(s)).join(" / ");
-            const strokes = way.map(([, s]) => s);
+            const display = way.map(([, m]) => chordRepr(m.stroke)).join(" / ");
+            const strokes = way.map(([, m]) => m.stroke);
+            const isBrief = way.map(([, m]) => m.isBrief);
             const output = way.map(([seg]) => seg).join(" ");
             const outputSegments = [way.map(([seg]) => seg)];
-            onChunk([display], [strokes], output, outputSegments);
+            onChunk([display], [strokes], output, outputSegments, [isBrief]);
           }
           self.postMessage({ type: "resultDone", id, total: way && way.length > 0 ? 1 : 0 });
         }
         return;
       }
 
-      const memo: Record<string, [string, Strokes][][]> = {};
+      const memo: Record<string, [string, ChordMatch][][]> = {};
       let total = 0;
       const gen = findSpellingsGenerator(target, rev, memo);
       let generatorDone = false;
       while (true) {
-        const batch: [string, Strokes][][] = [];
+        const batch: [string, ChordMatch][][] = [];
         for (let i = 0; i < YIELD_EVERY; i++) {
           if (maxEntries !== undefined && total >= maxEntries) break;
           const { value, done } = gen.next();
@@ -264,10 +267,11 @@ function runJob(
           total++;
         }
         for (const way of batch) {
-          const display = way.map(([, s]) => chordRepr(s)).join(" / ");
-          const strokes = way.map(([, s]) => s);
+          const display = way.map(([, m]) => chordRepr(m.stroke)).join(" / ");
+          const strokes = way.map(([, m]) => m.stroke);
+          const isBrief = way.map(([, m]) => m.isBrief);
           const outputSegments = [way.map(([seg]) => seg)];
-          onChunk([display], [strokes], undefined, outputSegments);
+          onChunk([display], [strokes], undefined, outputSegments, [isBrief]);
         }
         if (generatorDone || (maxEntries !== undefined && total >= maxEntries)) {
           if (currentJobId === id) self.postMessage({ type: "resultDone", id, total });

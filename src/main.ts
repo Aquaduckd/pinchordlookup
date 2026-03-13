@@ -150,14 +150,15 @@ function parseChordToKeys(chordStr: string, keyNames: string[]): Set<string> {
 /** [initial, vowel, final, suffix] stroke parts from worker */
 type Stroke = [string, string, string, string];
 
-function buildRow(display: string, strokes: Stroke[], segmentOutputs?: string[]): string {
+function buildRow(display: string, strokes: Stroke[], segmentOutputs?: string[], isBrief?: boolean[]): string {
   const chords = display.split(" / ");
   const slash = '<span class="text-gray-400 text-sm px-0.5">/</span>';
   const boxes = chords
     .map((c, chordIndex) => {
       const stroke = strokes[chordIndex] ?? ["", "", "", ""];
       const [initial, vowel, final, suffix] = stroke;
-      const attrs = `data-initial="${escapeHtml(initial)}" data-vowel="${escapeHtml(vowel)}" data-final="${escapeHtml(final)}" data-suffix="${escapeHtml(suffix)}" data-chord-index="${chordIndex}"`;
+      const brief = (isBrief?.[chordIndex] ?? false) ? "true" : "false";
+      const attrs = `data-initial="${escapeHtml(initial)}" data-vowel="${escapeHtml(vowel)}" data-final="${escapeHtml(final)}" data-suffix="${escapeHtml(suffix)}" data-chord-index="${chordIndex}" data-brief="${brief}"`;
       const label = chordIndex > 0 ? "+" + c : c;
       const out = segmentOutputs?.[chordIndex];
       const outputHtml = out !== undefined ? `<span class="block text-xs text-gray-500 mt-0.5">${escapeHtml(out)}</span>` : "";
@@ -167,9 +168,9 @@ function buildRow(display: string, strokes: Stroke[], segmentOutputs?: string[])
   return `<div class="flex flex-wrap gap-1.5 items-center min-h-[2.25rem] border-b border-gray-200 py-1">${boxes}</div>`;
 }
 
-function buildChunkLines(spellings: string[], ways: Stroke[][], outputSegments?: string[][]): string {
+function buildChunkLines(spellings: string[], ways: Stroke[][], outputSegments?: string[][], waysIsBrief?: boolean[][]): string {
   return spellings
-    .map((s, wayIndex) => buildRow(s, ways[wayIndex] ?? [], outputSegments?.[wayIndex]))
+    .map((s, wayIndex) => buildRow(s, ways[wayIndex] ?? [], outputSegments?.[wayIndex], waysIsBrief?.[wayIndex]))
     .join("");
 }
 
@@ -192,7 +193,7 @@ function getOrCreateBucket(container: Element, chordCount: number): HTMLElement 
   return bucket;
 }
 
-function renderSpellings(target: string, spellings: string[], ways: Stroke[][]) {
+function renderSpellings(target: string, spellings: string[], ways: Stroke[][], waysIsBrief?: boolean[][]) {
   if (!target.trim()) {
     outputCountEl.textContent = "";
     setOutput('<span class="text-gray-400">—</span>');
@@ -210,12 +211,12 @@ function renderSpellings(target: string, spellings: string[], ways: Stroke[][]) 
   outputCountEl.textContent = `${spellings.length} way(s)`;
   setOutput(
     '<div class="chord-output-inner flex flex-col gap-2">' +
-      buildChunkLines(spellings, ways) +
+      buildChunkLines(spellings, ways, undefined, waysIsBrief) +
       "</div>"
   );
 }
 
-function appendChunk(spellings: string[], ways: Stroke[][], outputSegments?: string[][]): void {
+function appendChunk(spellings: string[], ways: Stroke[][], outputSegments?: string[][], waysIsBrief?: boolean[][]): void {
   let container = outputEl.querySelector(".chord-output-inner");
   if (!container) {
     outputEl.innerHTML = '<div class="chord-output-inner flex flex-col gap-2"></div>';
@@ -224,7 +225,7 @@ function appendChunk(spellings: string[], ways: Stroke[][], outputSegments?: str
   for (let i = 0; i < spellings.length; i++) {
     const chordCount = (ways[i] ?? []).length;
     const bucket = getOrCreateBucket(container, chordCount);
-    bucket.insertAdjacentHTML("beforeend", buildRow(spellings[i], ways[i] ?? [], outputSegments?.[i]));
+    bucket.insertAdjacentHTML("beforeend", buildRow(spellings[i], ways[i] ?? [], outputSegments?.[i], waysIsBrief?.[i]));
   }
 }
 
@@ -552,7 +553,7 @@ function chordOutputWithJoiner(display: string): string {
   return chords.map((c, i) => (i > 0 ? "+" + c : c)).join(" / ");
 }
 
-worker.onmessage = (e: MessageEvent<{ type: string; id: number; spellings?: string[]; ways?: Stroke[][]; output?: string; outputSegments?: string[][]; total?: number; message?: string }>) => {
+worker.onmessage = (e: MessageEvent<{ type: string; id: number; spellings?: string[]; ways?: Stroke[][]; output?: string; outputSegments?: string[][]; waysIsBrief?: boolean[][]; total?: number; message?: string }>) => {
   const { type, id } = e.data;
   if (id === CSV_REQUEST_ID) {
     const pushRow = (chordOutput: string, output = "", strokes?: Stroke[]) => {
@@ -574,7 +575,7 @@ worker.onmessage = (e: MessageEvent<{ type: string; id: number; spellings?: stri
   }
   if (id !== requestId) return;
   if (type === "chunk" && e.data.spellings !== undefined && e.data.ways !== undefined) {
-    appendChunk(e.data.spellings, e.data.ways, e.data.outputSegments);
+    appendChunk(e.data.spellings, e.data.ways, e.data.outputSegments, e.data.waysIsBrief);
     totalShownForRequest += e.data.spellings.length;
     outputCountEl.textContent = `${totalShownForRequest} way(s) so far…`;
   } else if (type === "resultDone" && e.data.total !== undefined) {
@@ -611,7 +612,7 @@ function updateLayoutLabelsForVersion(version: string): void {
   }
 }
 
-/** Split key names into left (keyOrder indices 0–11) and right (12–23). Used for briefs. */
+/** Split key names into left (keyOrder indices 0–11) and right (12–23). Used when banks are not available. */
 function splitKeysByHand(keys: Set<string>, keyNames: string[]): { left: Set<string>; right: Set<string> } {
   const left = new Set<string>();
   const right = new Set<string>();
@@ -623,6 +624,23 @@ function splitKeysByHand(keys: Set<string>, keyNames: string[]): { left: Set<str
     }
   }
   return { left, right };
+}
+
+/** Assign keys to left/center/right by bank (initials → left, vowels → center, finals → right), first occurrence wins. */
+function splitKeysByBanks(
+  keys: Set<string>,
+  banks: { initials: string; vowels: string; finals: string } | undefined
+): { left: Set<string>; center: Set<string>; right: Set<string> } {
+  const left = new Set<string>();
+  const center = new Set<string>();
+  const right = new Set<string>();
+  if (!banks) return { left, center, right };
+  for (const k of keys) {
+    if (banks.initials.includes(k)) left.add(k);
+    else if (banks.vowels.includes(k)) center.add(k);
+    else if (banks.finals.includes(k)) right.add(k);
+  }
+  return { left, center, right };
 }
 
 function clearChordHighlight(): void {
@@ -647,7 +665,7 @@ function applyChordHighlight(el: HTMLElement, pinned = false): void {
   const suffixKeys = parseChordToKeys(suffix, keyNames);
   let leftKeys: Set<string>;
   let rightKeys: Set<string>;
-  const isBrief = initial.length > 0 && !vowel && !final && !suffix;
+  const isBrief = el.getAttribute("data-brief") === "true";
   let effectiveCenterKeys = centerKeys;
   if (isBrief) {
     if (initial.includes("-")) {
@@ -662,9 +680,17 @@ function applyChordHighlight(el: HTMLElement, pinned = false): void {
         [...leftHalfKeys].filter((k) => (banks?.vowels?.includes(k) ?? false))
       );
     } else {
-      const byHand = splitKeysByHand(initialKeys, keyNames);
-      leftKeys = new Set([...byHand.left, ...suffixKeys]);
-      rightKeys = new Set([...byHand.right, ...suffixKeys]);
+      const banks = layoutBanks[versionEl.value];
+      const byBank = splitKeysByBanks(initialKeys, banks);
+      if (byBank.left.size > 0 || byBank.center.size > 0 || byBank.right.size > 0) {
+        leftKeys = new Set([...byBank.left, ...suffixKeys]);
+        rightKeys = new Set([...byBank.right, ...suffixKeys]);
+        effectiveCenterKeys = new Set([...byBank.center, ...centerKeys]);
+      } else {
+        const byHand = splitKeysByHand(initialKeys, keyNames);
+        leftKeys = new Set([...byHand.left, ...suffixKeys]);
+        rightKeys = new Set([...byHand.right, ...suffixKeys]);
+      }
     }
   } else {
     leftKeys = new Set<string>([...initialKeys, ...suffixKeys]);
