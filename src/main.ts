@@ -1654,23 +1654,33 @@ function formatKeyValueLines(rec: Record<string, string>): string {
     .join("\n");
 }
 
+function dropEmptyOutputs(rec: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(rec).filter(([, v]) => v !== ""));
+}
+
 function buildJsonBuilderOutput(): { json: string; error?: string } {
   const csvSep = getJsonbuilderCsvSeparator();
-  const initials = jsonbuilderInitialsCsv?.checked
-    ? parseChordsCsvToRecord(jsonbuilderInitials?.value ?? "", csvSep)
-    : parseKeyValueLines(jsonbuilderInitials?.value ?? "");
-  const vowels = jsonbuilderVowelsCsv?.checked
-    ? parseChordsCsvToRecord(jsonbuilderVowels?.value ?? "", csvSep)
-    : parseKeyValueLines(jsonbuilderVowels?.value ?? "");
-  const finals = jsonbuilderFinalsCsv?.checked
-    ? parseChordsCsvToRecord(jsonbuilderFinals?.value ?? "", csvSep)
-    : parseKeyValueLines(jsonbuilderFinals?.value ?? "");
-  const prefixes = parseKeyValueLines(jsonbuilderPrefixes?.value ?? "");
-  const suffixes = parseKeyValueLines(jsonbuilderSuffixes?.value ?? "");
+  const initials = dropEmptyOutputs(
+    jsonbuilderInitialsCsv?.checked
+      ? parseChordsCsvToRecord(jsonbuilderInitials?.value ?? "", csvSep)
+      : parseKeyValueLines(jsonbuilderInitials?.value ?? "")
+  );
+  const vowels = dropEmptyOutputs(
+    jsonbuilderVowelsCsv?.checked
+      ? parseChordsCsvToRecord(jsonbuilderVowels?.value ?? "", csvSep)
+      : parseKeyValueLines(jsonbuilderVowels?.value ?? "")
+  );
+  const finals = dropEmptyOutputs(
+    jsonbuilderFinalsCsv?.checked
+      ? parseChordsCsvToRecord(jsonbuilderFinals?.value ?? "", csvSep)
+      : parseKeyValueLines(jsonbuilderFinals?.value ?? "")
+  );
+  const prefixes = dropEmptyOutputs(parseKeyValueLines(jsonbuilderPrefixes?.value ?? ""));
+  const suffixes = dropEmptyOutputs(parseKeyValueLines(jsonbuilderSuffixes?.value ?? ""));
   const bankInitials = (jsonbuilderBankInitials?.value ?? "").trim();
   const bankVowels = (jsonbuilderBankVowels?.value ?? "").trim();
   const bankFinals = (jsonbuilderBankFinals?.value ?? "").trim();
-  const briefs = parseKeyValueLines(jsonbuilderBriefs?.value ?? "");
+  const briefs = dropEmptyOutputs(parseKeyValueLines(jsonbuilderBriefs?.value ?? ""));
   const keyOrder = (jsonbuilderKeyOrder?.value ?? "").trim();
 
   const banks: { initials?: string; vowels?: string; finals?: string } = {};
