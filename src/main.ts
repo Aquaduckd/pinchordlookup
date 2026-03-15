@@ -10,6 +10,14 @@ const outputCountEl = document.getElementById("chord-output-count")!;
 
 const configCustomJson = document.getElementById("config-custom-json") as HTMLTextAreaElement;
 const configCustomStatus = document.getElementById("config-custom-status")!;
+const configDownloadOrthospellingBtn = document.getElementById("config-download-orthospelling");
+const configDownloadSystemBtn = document.getElementById("config-download-system");
+const configKeymapSelect = document.getElementById("config-keymap") as HTMLSelectElement | null;
+const configDownloadLayoutBtn = document.getElementById("config-download-layout");
+
+const JAVELIN_KEYMAPS: Record<string, { url: string; filename: string }> = {
+  starboard: { url: "Javelin/Layouts/Starboard.javelin-layout", filename: "Starboard.javelin-layout" },
+};
 
 const URL_PARAM_VERSION = "version";
 const URL_PARAM_TEXT = "text";
@@ -754,6 +762,212 @@ if (configCustomJson) {
   });
   configCustomJson.addEventListener("blur", () => parseCustomJson());
 }
+
+/** Build avoidMask string: bank minus stroke letters, in bank order. Optionally prefix (e.g. '-' for finals). */
+function avoidMaskForStroke(strokeLetters: string, bank: string, prefix = ""): string {
+  let rest = bank;
+  for (const c of strokeLetters) rest = rest.replace(c, "");
+  return prefix + rest;
+}
+
+/** Reorder stroke characters to match bank order (e.g. "A^" with bank "^AIOE" → "^A"). */
+function strokeInBankOrder(stroke: string, bank: string): string {
+  const result: string[] = [];
+  for (const c of bank) {
+    if (stroke.includes(c)) result.push(c);
+  }
+  return result.join("");
+}
+
+function buildJavelinOrthospellingYaml(data: ChordData, displayName: string): string {
+  const banks = data.banks ?? {};
+  const initialsBank = banks.initials ?? "";
+  const vowelsBank = banks.vowels ?? "";
+  const finalsBank = banks.finals ?? "";
+  const initials = data.initials ?? {};
+  const vowels = data.vowels ?? {};
+  const finals = data.finals ?? {};
+  const escapeYaml = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const lines: string[] = [];
+  lines.push(`name: "${escapeYaml(displayName)}"`);
+  lines.push("maximumOutlineLength: 1");
+  lines.push("starters:");
+  lines.push("- {stroke: '', definition: '{}', mask: ''}");
+  lines.push("letters:");
+  lines.push("- {stroke: '+', data: '{^}', order: 1}");
+  lines.push("- {stroke: '-', data: '{^}', order: 4}");
+  const sortByStroke = (a: [string, string], b: [string, string]) =>
+    a[0].length !== b[0].length ? a[0].length - b[0].length : (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  for (const [stroke, output] of Object.entries(initials).sort(sortByStroke)) {
+    const ordered = strokeInBankOrder(stroke, initialsBank);
+    const avoid = avoidMaskForStroke(stroke, initialsBank);
+    lines.push(`- {stroke: "${escapeYaml(ordered)}", data: "${escapeYaml(output)}", order: 2, avoidMask: "${escapeYaml(avoid)}"}`);
+  }
+  for (const [stroke, output] of Object.entries(vowels).sort(sortByStroke)) {
+    const ordered = strokeInBankOrder(stroke, vowelsBank);
+    const avoid = avoidMaskForStroke(stroke, vowelsBank);
+    lines.push(`- {stroke: "${escapeYaml(ordered)}", data: "${escapeYaml(output)}", order: 3, avoidMask: "${escapeYaml(avoid)}"}`);
+  }
+  for (const [stroke, output] of Object.entries(finals).sort(sortByStroke)) {
+    const ordered = strokeInBankOrder(stroke, finalsBank);
+    const avoid = avoidMaskForStroke(stroke, finalsBank, "-");
+    lines.push(`- {stroke: "${escapeYaml("-" + ordered)}", data: "${escapeYaml(output)}", order: 4, avoidMask: "${escapeYaml(avoid)}"}`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+function buildJavelinSystemYaml(data: ChordData, baseYaml: string, displayName: string): string {
+  const keyOrder = (data.keyOrder ?? "").trim();
+  if (keyOrder.length !== 24) throw new Error("keyOrder must be 24 characters");
+  const banks = data.banks ?? {};
+  const vowels = banks.vowels ?? "";
+  const finals = banks.finals ?? "";
+  const keyOrderArr = keyOrder.split("");
+  const escapedName = displayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+  const maskForIndex = (i: number) => (i <= 0xff ? `0x${(1 << i).toString(16).toUpperCase().padStart(2, "0")}` : `0x${(1 << i).toString(16).toUpperCase()}`);
+
+  let keysSection = "keys:\n";
+  for (let i = 0; i < 12; i++) {
+    keysSection += `  - name: "${keyOrderArr[i]}"\n`;
+    keysSection += `    mask: ${maskForIndex(i)}\n`;
+  }
+  const absentMask = keyOrderArr.reduce((sum, c, i) => (vowels.includes(c) ? sum + (1 << i) : sum), 0);
+  // presentMask: only finals bank, and only keys in right-hand positions 12–23 (exclude initials side)
+  const presentMask = keyOrderArr.reduce((sum, c, i) => (i >= 12 && finals.includes(c) ? sum + (1 << i) : sum), 0);
+  keysSection += `  - name: "-"\n`;
+  keysSection += `    mask: 0\n`;
+  keysSection += `    absentMask: ${absentMask}\n`;
+  keysSection += `    presentMask: ${presentMask}\n`;
+  for (let i = 12; i < 24; i++) {
+    keysSection += `  - name: "${keyOrderArr[i]}"\n`;
+    keysSection += `    mask: ${maskForIndex(i)}\n`;
+  }
+  const undo = "-" + keyOrderArr[15] + keyOrderArr[16];
+  keysSection += `\nundo: "${undo}"\n`;
+
+  const keysStart = baseYaml.indexOf("keys:");
+  if (keysStart === -1) throw new Error("Base YAML has no keys section");
+  const afterKeysEnd = baseYaml.indexOf("\nlayout:", keysStart);
+  if (afterKeysEnd === -1) throw new Error("Base YAML has no layout section");
+  let header = baseYaml.slice(0, keysStart);
+  header = header.replace(/^name: .+$/m, `name: "${escapedName}"`);
+  return header + keysSection + baseYaml.slice(afterKeysEnd);
+}
+
+if (configDownloadOrthospellingBtn) {
+  configDownloadOrthospellingBtn.addEventListener("click", async () => {
+    const version = versionEl.value;
+    try {
+      let data: ChordData;
+      if (version === "custom") {
+        if (!customChordData) {
+          configCustomStatus.textContent = "Paste valid chord JSON in Config first.";
+          configCustomStatus.classList.add("text-red-600");
+          return;
+        }
+        data = customChordData;
+      } else {
+        const res = await fetch(`chord-versions/${chordFileName(version)}`);
+        if (!res.ok) throw new Error(res.statusText);
+        data = (await res.json()) as ChordData;
+      }
+      const displayName =
+        version === "custom"
+          ? "Pinchord (custom)"
+          : version.startsWith("pinechord-")
+            ? `Pinechord ${version.slice(10)}`
+            : `Pinchord ${version}`;
+      const yaml = buildJavelinOrthospellingYaml(data, displayName);
+      const systemName = version.startsWith("pinechord-") ? "Pinechord" : "Pinchord";
+      const versionSuffix = version === "custom" ? "custom" : version;
+      const filename = `${systemName.toLowerCase()}-javelin-dictionary-${versionSuffix}.yaml`;
+      const blob = new Blob([yaml], { type: "application/x-yaml" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      configCustomStatus.textContent = `Downloaded ${filename}.`;
+      configCustomStatus.classList.remove("text-red-600");
+    } catch (e) {
+      configCustomStatus.textContent = e instanceof Error ? e.message : "Failed to build orthospelling YAML.";
+      configCustomStatus.classList.add("text-red-600");
+    }
+  });
+}
+
+if (configDownloadSystemBtn) {
+  configDownloadSystemBtn.addEventListener("click", async () => {
+    const version = versionEl.value;
+    try {
+      let data: ChordData;
+      if (version === "custom") {
+        if (!customChordData) {
+          configCustomStatus.textContent = "Paste valid chord JSON in Config first.";
+          configCustomStatus.classList.add("text-red-600");
+          return;
+        }
+        data = customChordData;
+      } else {
+        const res = await fetch(`chord-versions/${chordFileName(version)}`);
+        if (!res.ok) throw new Error(res.statusText);
+        data = (await res.json()) as ChordData;
+      }
+      const baseRes = await fetch("Javelin/javelin-system-base.yaml");
+      if (!baseRes.ok) throw new Error(baseRes.statusText);
+      const baseYaml = await baseRes.text();
+      const displayName =
+        version === "custom"
+          ? "Pinchord (custom)"
+          : version.startsWith("pinechord-")
+            ? `Pinechord ${version.slice(10)}`
+            : `Pinchord ${version}`;
+      const yaml = buildJavelinSystemYaml(data, baseYaml, displayName);
+      const systemName = version.startsWith("pinechord-") ? "Pinechord" : "Pinchord";
+      const versionSuffix = version === "custom" ? "custom" : version;
+      const filename = `${systemName.toLowerCase()}-javelin-system-${versionSuffix}.yaml`;
+      const blob = new Blob([yaml], { type: "application/x-yaml" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      configCustomStatus.textContent = `Downloaded ${filename}.`;
+      configCustomStatus.classList.remove("text-red-600");
+    } catch (e) {
+      configCustomStatus.textContent = e instanceof Error ? e.message : "Failed to build system YAML.";
+      configCustomStatus.classList.add("text-red-600");
+    }
+  });
+}
+
+if (configDownloadLayoutBtn && configKeymapSelect) {
+  configDownloadLayoutBtn.addEventListener("click", async () => {
+    const keymapId = configKeymapSelect.value;
+    const keymap = JAVELIN_KEYMAPS[keymapId];
+    if (!keymap) {
+      configCustomStatus.textContent = `Unknown keymap: ${keymapId}.`;
+      configCustomStatus.classList.add("text-red-600");
+      return;
+    }
+    const { url, filename } = keymap;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.statusText);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      configCustomStatus.textContent = `Failed to download ${filename}.`;
+      configCustomStatus.classList.add("text-red-600");
+    }
+  });
+}
+
 inputEl.addEventListener("input", () => {
   syncUrlFromControls();
   requestUpdate();

@@ -1,0 +1,591 @@
+{
+	"layers": [
+		{
+			"id": 0,
+			"name": "Default",
+			"keys": [
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoNum1"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoNum1"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoS2"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoS2"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoKL"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoKL"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoWL"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoWL"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoRL"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoRL"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoO"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoO"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoRR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoRR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoPR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoPR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoLR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoLR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoTR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoTR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoDR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoDR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoCaret"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoCaret"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoNum1"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoNum1"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoTL"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoTL"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoPL"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoPL"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoHL"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoHL"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoA"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoA"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoBR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoBR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoGR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoGR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoSR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoSR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoZR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoZR"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoCaret"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoCaret"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoStar1"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoStar1"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoE"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoE"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoU"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoU"
+							}
+						}
+					}
+				],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "p",
+								"c": "stenoFR"
+							}
+						}
+					},
+					{
+						"t": "r",
+						"d": {
+							"a": {
+								"t": "r",
+								"c": "stenoFR"
+							}
+						}
+					}
+				],
+				[],
+				[
+					{
+						"t": "p",
+						"d": {
+							"a": {
+								"t": "c",
+								"c": "launch_bootloader"
+							}
+						}
+					}
+				]
+			],
+			"scripts": {},
+			"user_scripts": {},
+			"options": {
+				"Enable individual keys in Key Layout tool": "true"
+			},
+			"sequences": {}
+		}
+	],
+	"global": {
+		"scripts": [],
+		"layer": {
+			"id": -1,
+			"name": "Global",
+			"keys": [
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				[],
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+			],
+			"scripts": {
+				"activateLayer": "setEnableButtonStates(#flag(per_layer, \"Enable individual keys in Key Layout tool\", false));\n"
+			},
+			"user_scripts": {},
+			"options": {},
+			"sequences": {}
+		}
+	}
+}
